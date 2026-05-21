@@ -1,37 +1,62 @@
-// app.js
 const express = require('express');
-const path = require('path');
-const db = require('./config/database'); // Inicializa tu SQLite de tenis
-const authRoutes = require('./src/rutas/authRoutes');
-
+const cors = require('cors');
+const sqlite3 = require('sqlite3').verbose(); // Aseguramos que cargue sqlite3
+const path = require('path'); // Librería nativa para manejar rutas de carpetas
 const app = express();
+
+// Configuración de Permisos y JSON
+app.use(cors());
+app.use(express.json());
+
+// =========================================================================
+// CONEXIÓN CORREGIDA A TU BASE DE DATOS (Entrando a la carpeta 'database')
+// =========================================================================
+const dbPath = path.join(__dirname, 'database', 'tenis_factory.db');
+const db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+        console.error('Error al abrir la base de datos:', err.message);
+    } else {
+        console.log('Conectado con éxito a la base de datos: tenis_factory.db');
+    }
+});
+
+// =========================================================================
+// TU RUTA DE LOGIN REAL CON CONSULTA A LA BASE DE DATOS
+// =========================================================================
+app.post('/login', (req, res) => {
+    const { correo, contrasena } = req.body;
+
+    // Consulta SQL para verificar si el usuario existe en tu base de datos
+    const sql = `SELECT * FROM usuarios WHERE correo = ? AND contrasena = ?`;
+    
+    db.get(sql, [correo, contrasena], (err, row) => {
+        if (err) {
+            console.error(err.message);
+            return res.status(500).json({ mensaje: "Error interno del servidor" });
+        }
+        
+        if (row) {
+            // Si encuentra la fila, las credenciales son correctas
+            res.json({ mensaje: "Usuario encontrado", valido: true, usuario: row });
+        } else {
+            // Si no encuentra nada, el correo o contraseña están mal
+            res.status(401).json({ mensaje: "Credenciales incorrectas", valido: false });
+        }
+    });
+});
+
+// =========================================================================
+// RUTA DEL DESPERTADOR (PING)
+// =========================================================================
+app.get('/ping', (req, res) => {
+    res.send('Servidor despierto');
+});
+
+// =========================================================================
+// CONFIGURACIÓN DEL PUERTO PARA RENDER
+// =========================================================================
 const PORT = process.env.PORT || 3000;
 
-// Middlewares obligatorios para leer JSON y formularios
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Servir la carpeta public para que cargue el CSS y el JS
-app.use(express.static(path.join(__dirname, 'public')));
-
-// app.js
-
-// 1. Cuando entras a http://localhost:3000 -> Carga el login desde la carpeta views
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'views', 'index.html'));
-});
-
-// 2. 🔥 LA RUTA CORRECTA: Cuando el navegador pida /inicio.html, Express lo busca dentro de views/
-app.get('/inicio.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'views', 'inicio.html'));
-});
-
-// Enlazar las rutas de la API de autenticación
-app.use('/api/auth', authRoutes);
-
-// Levantar el servidor
 app.listen(PORT, () => {
-    console.log(`==================================================`);
-    console.log(`🚀 Servidor corriendo en: http://localhost:${PORT}`);
-    console.log(`==================================================`);
+    console.log(`Servidor corriendo con éxito en el puerto ${PORT}`);
 });
