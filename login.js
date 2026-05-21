@@ -2,10 +2,10 @@ const BACKEND_URL = 'https://servidor-tenis.onrender.com';
 
 // 1. DESPERTADOR AUTOMÁTICO
 fetch(`${BACKEND_URL}/ping`)
-    .then(() => console.log("Servidor de Render conectado."))
+    .then(() => console.log("Servidor de Render conectado con éxito."))
     .catch((err) => console.log("Despertando servidor...", err));
 
-// 2. LOGICA PARA INICIAR SESIÓN
+// 2. INICIO DE SESIÓN
 document.getElementById('form-login').addEventListener('submit', (e) => {
     e.preventDefault();
     const correo = document.getElementById('input-correo').value;
@@ -29,7 +29,7 @@ document.getElementById('form-login').addEventListener('submit', (e) => {
     });
 });
 
-// 3. LOGICA PARA CREAR USUARIO (FUNCIONANDO A LA PAR)
+// 3. REGISTRO DE USUARIOS
 document.getElementById('form-registro').addEventListener('submit', (e) => {
     e.preventDefault();
 
@@ -48,7 +48,7 @@ document.getElementById('form-registro').addEventListener('submit', (e) => {
         return res.json();
     })
     .then(data => {
-        alert("¡Usuario creado con éxito en la Base de Datos! Ya puede iniciar sesión.");
+        alert("¡Usuario creado con éxito en la Base de Datos!");
         document.getElementById('form-registro').reset();
         document.getElementById('mensaje-error-registro').innerText = "";
     })
