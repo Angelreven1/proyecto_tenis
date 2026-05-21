@@ -1,3 +1,6 @@
+-- =========================================================================
+-- DATOS DE PRUEBA (SEEDS) PARA SMART TENNIS MANAGER - CORREGIDO
+-- =========================================================================
 
 -- Insertar Proveedores
 INSERT OR IGNORE INTO proveedores (id, nombre, contacto, telefono, email) VALUES 
@@ -10,7 +13,7 @@ INSERT OR IGNORE INTO productos (id, modelo, descripcion, precio_venta, costo_pr
 (2, 'Aero Court Speed', 'Diseño ultra ligero para jugadores de fondo con suela de alta tracción.', 2200.00, 900.00, 1),
 (3, 'Classic Club Leather', 'Estilo retro casual en piel vacuna transpirable.', 1500.00, 500.00, 2);
 
--- Insertar Existencias en el Inventario (Importante anotar los ID autoincrementales: 1, 2, 3, 4)
+-- Insertar Existencias en el Inventario (Columna corregida a 'cantidad')
 INSERT OR IGNORE INTO inventario (id, producto_id, talla, color, cantidad) VALUES 
 (1, 1, 26.0, 'Blanco/Azul', 15),
 (2, 1, 27.0, 'Blanco/Azul', 22),
@@ -24,10 +27,10 @@ INSERT OR IGNORE INTO ordenes_produccion (usuario_id, producto_id, cantidad, fec
 
 -- Insertar Ventas Históricas
 INSERT OR IGNORE INTO ventas (id, cliente_nombre, fecha, total) VALUES 
-(1, 'Luis Fernando Garza', '2026-05-20', 3700.00), -- Compró 2 pares de Smash Pro
-(2, 'María Paula Rojas', '2026-05-21', 1500.00);  -- Compró 1 par de Classic Club
+(1, 'Luis Fernando Garza', '2026-05-20', 3700.00),
+(2, 'María Paula Rojas', '2026-05-21', 1500.00);
 
--- Insertar Detalles de las Ventas (Uniendo la venta con el lote del inventario)
+-- Insertar Detalles de las Ventas
 INSERT OR IGNORE INTO detalle_ventas (venta_id, inventario_id, cantidad, precio_unitario) VALUES 
-(1, 1, 2, 1850.00), -- 2 pares del lote 1 (Smash Pro talla 26)
-(2, 4, 1, 1500.00); -- 1 par del lote 4 (Classic Club talla 26)
+(1, 1, 2, 1850.00),
+(2, 4, 1, 1500.00);
