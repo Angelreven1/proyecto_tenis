@@ -1,32 +1,32 @@
 const express = require('express');
 const cors = require('cors');
-const sqlite3 = require('sqlite3').verbose(); // Aseguramos que cargue sqlite3
-const path = require('path'); // Librería nativa para manejar rutas de carpetas
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
 const app = express();
 
-// Configuración de Permisos y JSON
+// Configuración de Permisos de comunicación y lectura JSON
 app.use(cors());
 app.use(express.json());
 
 // =========================================================================
-// CONEXIÓN CORREGIDA A TU BASE DE DATOS (Entrando a la carpeta 'database')
+// CONEXIÓN A TU BASE DE DATOS SQLITE (Dentro de la carpeta 'database')
 // =========================================================================
 const dbPath = path.join(__dirname, 'database', 'tenis_factory.db');
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error('Error al abrir la base de datos:', err.message);
     } else {
-        console.log('Conectado con éxito a la base de datos: tenis_factory.db');
+        console.log('Conectado con éxito a la base de datos: database/tenis_factory.db');
     }
 });
 
 // =========================================================================
-// TU RUTA DE LOGIN REAL CON CONSULTA A LA BASE DE DATOS
+// RUTA DE LOGIN REAL CON CONSULTA SQL
 // =========================================================================
 app.post('/login', (req, res) => {
     const { correo, contrasena } = req.body;
 
-    // Consulta SQL para verificar si el usuario existe en tu base de datos
+    // Consulta SQL para verificar si el usuario coincide
     const sql = `SELECT * FROM usuarios WHERE correo = ? AND contrasena = ?`;
     
     db.get(sql, [correo, contrasena], (err, row) => {
@@ -36,10 +36,10 @@ app.post('/login', (req, res) => {
         }
         
         if (row) {
-            // Si encuentra la fila, las credenciales son correctas
+            // Usuario encontrado con éxito
             res.json({ mensaje: "Usuario encontrado", valido: true, usuario: row });
         } else {
-            // Si no encuentra nada, el correo o contraseña están mal
+            // No existe el usuario o la contraseña está mal
             res.status(401).json({ mensaje: "Credenciales incorrectas", valido: false });
         }
     });
