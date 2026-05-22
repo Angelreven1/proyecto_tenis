@@ -1,11 +1,10 @@
 const BACKEND_URL = 'https://servidor-tenis.onrender.com';
 
-// 1. DESPERTADOR AUTOMÁTICO
 fetch(`${BACKEND_URL}/ping`)
-    .then(() => console.log("Servidor de Render conectado con éxito."))
-    .catch((err) => console.log("Despertando servidor...", err));
+    .then(() => console.log("Servidor en la nube conectado con éxito."))
+    .catch((err) => console.log("Despertando servidor en Render...", err));
 
-// 2. INICIO DE SESIÓN
+// LOGICA PARA INICIAR SESIÓN
 document.getElementById('form-login').addEventListener('submit', (e) => {
     e.preventDefault();
     const correo = document.getElementById('input-correo').value;
@@ -22,17 +21,24 @@ document.getElementById('form-login').addEventListener('submit', (e) => {
     })
     .then(data => {
         alert("¡Inicio de sesión correcto!");
+        // ========================================================
+        // 🚀 AQUÍ COLOCAS LAS LÍNEAS PARA GUARDAR EN EL NAVEGADOR
+        // ========================================================
+        // Guardamos el rol y el nombre que el servidor de Render nos devuelve en 'data'
+        localStorage.setItem('usuario_rol', data.usuario.rol); 
+        localStorage.setItem('usuario_nombre', data.usuario.nombre);
+
+        // Ahora sí, redirige a la página dinámica
         window.location.href = 'inicio.html';
     })
     .catch(err => {
-        document.getElementById('mensaje-error').innerText = "Error al conectar con el servidor o datos inválidos.";
+        document.getElementById('mensaje-error').innerText = "Error de conexión o credenciales inválidas.";
     });
 });
 
-// 3. REGISTRO DE USUARIOS
+// LOGICA PARA CREAR USUARIO
 document.getElementById('form-registro').addEventListener('submit', (e) => {
     e.preventDefault();
-
     const nombre = document.getElementById('reg-nombre').value;
     const correo = document.getElementById('reg-correo').value;
     const contrasena = document.getElementById('reg-pass').value;
@@ -48,11 +54,37 @@ document.getElementById('form-registro').addEventListener('submit', (e) => {
         return res.json();
     })
     .then(data => {
-        alert("¡Usuario creado con éxito en la Base de Datos!");
+        alert("¡Usuario creado con éxito!");
         document.getElementById('form-registro').reset();
-        document.getElementById('mensaje-error-registro').innerText = "";
     })
     .catch(err => {
-        document.getElementById('mensaje-error-registro').innerText = err.message || "Error al registrar.";
+        document.getElementById('mensaje-error-registro').innerText = err.message;
     });
 });
+
+// LOGICA PARA REGISTRAR PRODUCTO NUEVO
+const formTenis = document.getElementById('form-nuevo-tenis');
+if (formTenis) {
+    formTenis.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const modelo = document.getElementById('tenis-modelo').value;
+        const descripcion = document.getElementById('tenis-desc').value;
+        const precio_venta = parseFloat(document.getElementById('tenis-precio').value);
+        const costo_produccion = parseFloat(document.getElementById('tenis-costo').value);
+        const proveedor_id = document.getElementById('tenis-proveedor').value;
+
+        fetch(`${BACKEND_URL}/productos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ modelo, descripcion, precio_venta, costo_produccion, proveedor_id: proveedor_id ? parseInt(proveedor_id) : null })
+        })
+        .then(res => {
+            if (!res.ok) return res.json().then(err => { throw new Error(err.mensaje); });
+            return res.json();
+        })
+        .then(() => {
+            alert("¡Tenis guardado exitosamente!");
+            formTenis.reset();
+        });
+    });
+}
