@@ -3,6 +3,9 @@ const cors = require('cors');
 const mysql = require('mysql2');
 const fs = require('fs');
 const path = require('path');
+// ✨ CONEXIÓN OFICIAL: Usamos la librería nativa de Google que acabamos de instalar
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
 const app = express();
 
 app.use(cors());
@@ -147,7 +150,8 @@ app.get('/ordenes', (req, res) => {
 });
 
 app.post('/ordenes', (req, res) => {
-    const { usuario_id, producto_id, cantidad, talla, color } = req.body;
+    const { usuario_id, producto_id, Math_cantidad, talla, color } = req.body;
+    const cantidad = parseInt(Math_cantidad) || req.body.cantidad;
 
     pool.query(`SELECT materia_prima_id, cantidad_requerida FROM recetas_producto WHERE producto_id = ?`, [producto_id], (err, ingredientes) => {
         if (err) return res.status(500).json({ mensaje: "Error al consultar la receta del modelo" });
@@ -201,57 +205,66 @@ app.post('/materiaprima', (req, res) => {
 });
 
 // =========================================================================
-// 🤖 ENDPOINT DE INTELIGENCIA ARTIFICIAL (GEMINI AI INTEGRADO)
+// 🤖 ENDPOINT DE INTELIGENCIA ARTIFICIAL (GEMINI AI ACTUALIZADO Y SEGURO)
 // =========================================================================
 app.post('/api/ia/consultar', (req, res) => {
     const { pregunta, usuario } = req.body;
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-    // Consultamos el estado actual del inventario e insumos para darle contexto real a Gemini
+    if (!GEMINI_API_KEY) {
+        return res.json({ respuesta: "🤖 Hola. El backend está listo, pero la variable GEMINI_API_KEY no está configurada en las variables de entorno de Render." });
+    }
+
+    // 1. Consultamos insumos
     pool.query('SELECT material, cantidad_stock, unidad_medida FROM materia_prima', (errMateria, insumos) => {
+        // 2. Consultamos stock físico de tenis
         pool.query('SELECT p.modelo, i.talla, i.color, i.cantidad FROM inventario i JOIN productos p ON i.producto_id = p.id', (errInv, stockFisico) => {
-            
-            // Creamos un reporte de contexto limpio para inyectarle a la IA
-            const contextoInsumos = (insumos || []).map(i => `• ${i.material}: ${i.cantidad_stock} ${i.unidad_medida}`).join('\n');
-            const contextoInventario = (stockFisico || []).map(s => `• ${s.modelo} (Talla ${s.talla}, Color ${s.color}): ${s.cantidad} pares`).join('\n');
-
-            const promptCompleto = `
-                Eres el asistente virtual de la Fábrica de Tenis Smart Manufacturing.
-                El usuario actual autenticado es: ${usuario}.
+            // 3. ✨ NUEVO: Consultamos la tabla usuarios para que pueda responder tu pregunta de la foto
+            pool.query('SELECT id, nombre, correo, rol FROM usuarios ORDER BY id ASC', async (errUser, listaUsuarios) => {
                 
-                ESTADO ACTUAL DEL ALMACÉN (DATOS REALES EN VIVO):
+                // Estructuramos el contexto dinámico en texto limpio
+                const contextoInsumos = (insumos || []).map(i => `• ${i.material}: ${i.cantidad_stock} ${i.unidad_medida}`).join('\n');
+                const contextoInventario = (stockFisico || []).map(s => `• ${s.modelo} (Talla ${s.talla}, Color ${s.color}): ${s.cantidad} pares`).join('\n');
+                const contextoUsuarios = (listaUsuarios || []).map(u => `• ID #${u.id} - ${u.nombre} (${u.correo}) - Rol: ${u.rol}`).join('\n');
+
+                const promptCompleto = `
+                Eres el asistente virtual exclusivo de la Fábrica de Tenis Smart Manufacturing.
+                El usuario actual que te está consultando es: ${usuario}.
+                
+                ESTADO ACTUAL DE LA BASE DE DATOS EN VIVO (AIVEN CLOUD):
+                
                 Materia Prima Disponible:
                 ${contextoInsumos || 'No hay insumos registrados.'}
                 
-                Producto Terminado Listo para la Venta:
+                Producto Terminado (Tenis en Existencias):
                 ${contextoInventario || 'No hay calzado fabricado en existencias.'}
+                
+                Colaboradores y Usuarios Registrados:
+                ${contextoUsuarios || 'No hay usuarios en el sistema.'}
                 
                 Pregunta del usuario: "${pregunta}"
                 
-                Responde de forma concisa, ejecutiva y amigable, basándote estrictamente en los datos numéricos provistos arriba.
-            `;
+                Instrucciones importantes:
+                - Responde de forma concisa, ejecutiva y amigable.
+                - Utiliza exclusivamente los datos provistos arriba para dar tus respuestas.
+                - No utilices asteriscos dobles ni formato Markdown complejo para negritas; mantén la respuesta en texto plano y legible para el cuadro de chat.
+                `;
 
-            // Enlace de conexión directa con la API oficial de Gemini Pro
-            const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-            const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+                try {
+                    // Inicializamos el SDK oficial de Google que instalamos con npm
+                    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+                    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-            if (!GEMINI_API_KEY) {
-                return res.json({ respuesta: "🤖 Hola. El backend está listo, pero la variable GEMINI_API_KEY no está configurada en Render." });
-            }
+                    // Mandamos el prompt estructurado
+                    const result = await model.generateContent(promptCompleto);
+                    const respuestaIA = result.response.text();
 
-            fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: promptCompleto }] }]
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                const respuestaIA = data.candidates[0].content.parts[0].text;
-                res.json({ respuesta: respuestaIA });
-            })
-            .catch(error => {
-                res.status(500).json({ respuesta: "Ocurrió un inconveniente al conectar con el servicio de Gemini." });
+                    res.json({ respuesta: respuestaIA });
+
+                } catch (error) {
+                    console.error("Error en el servicio nativo de Gemini:", error);
+                    res.status(500).json({ respuesta: "Ocurrió un inconveniente al procesar la respuesta con el servicio de Gemini AI." });
+                }
             });
         });
     });
