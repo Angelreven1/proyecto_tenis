@@ -205,65 +205,51 @@ app.post('/materiaprima', (req, res) => {
 });
 
 // =========================================================================
-// 🤖 ENDPOINT DE INTELIGENCIA ARTIFICIAL (GEMINI AI ACTUALIZADO Y SEGURO)
+// 🤖 ENDPOINT DE INTELIGENCIA ARTIFICIAL (GEMINI AI MODO DEPURACIÓN)
 // =========================================================================
 app.post('/api/ia/consultar', (req, res) => {
     const { pregunta, usuario } = req.body;
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
     if (!GEMINI_API_KEY) {
-        return res.json({ respuesta: "🤖 Hola. El backend está listo, pero la variable GEMINI_API_KEY no está configurada en las variables de entorno de Render." });
+        return res.status(500).json({ respuesta: "🤖 Error: La variable GEMINI_API_KEY no existe en Render." });
     }
 
-    // 1. Consultamos insumos
     pool.query('SELECT material, cantidad_stock, unidad_medida FROM materia_prima', (errMateria, insumos) => {
-        // 2. Consultamos stock físico de tenis
         pool.query('SELECT p.modelo, i.talla, i.color, i.cantidad FROM inventario i JOIN productos p ON i.producto_id = p.id', (errInv, stockFisico) => {
-            // 3. ✨ NUEVO: Consultamos la tabla usuarios para que pueda responder tu pregunta de la foto
             pool.query('SELECT id, nombre, correo, rol FROM usuarios ORDER BY id ASC', async (errUser, listaUsuarios) => {
                 
-                // Estructuramos el contexto dinámico en texto limpio
                 const contextoInsumos = (insumos || []).map(i => `• ${i.material}: ${i.cantidad_stock} ${i.unidad_medida}`).join('\n');
                 const contextoInventario = (stockFisico || []).map(s => `• ${s.modelo} (Talla ${s.talla}, Color ${s.color}): ${s.cantidad} pares`).join('\n');
                 const contextoUsuarios = (listaUsuarios || []).map(u => `• ID #${u.id} - ${u.nombre} (${u.correo}) - Rol: ${u.rol}`).join('\n');
 
                 const promptCompleto = `
-                Eres el asistente virtual exclusivo de la Fábrica de Tenis Smart Manufacturing.
-                El usuario actual que te está consultando es: ${usuario}.
+                Eres el asistente virtual exclusivo del sistema Smart Tenis.
+                El usuario actual es: ${usuario}.
                 
-                ESTADO ACTUAL DE LA BASE DE DATOS EN VIVO (AIVEN CLOUD):
+                Datos en vivo:
+                Insumos:\n${contextoInsumos || 'Ninguno'}
+                Inventario:\n${contextoInventario || 'Ninguno'}
+                Usuarios:\n${contextoUsuarios || 'Ninguno'}
                 
-                Materia Prima Disponible:
-                ${contextoInsumos || 'No hay insumos registrados.'}
+                Pregunta: "${pregunta}"
                 
-                Producto Terminado (Tenis en Existencias):
-                ${contextoInventario || 'No hay calzado fabricado en existencias.'}
-                
-                Colaboradores y Usuarios Registrados:
-                ${contextoUsuarios || 'No hay usuarios en el sistema.'}
-                
-                Pregunta del usuario: "${pregunta}"
-                
-                Instrucciones importantes:
-                - Responde de forma concisa, ejecutiva y amigable.
-                - Utiliza exclusivamente los datos provistos arriba para dar tus respuestas.
-                - No utilices asteriscos dobles ni formato Markdown complejo para negritas; mantén la respuesta en texto plano y legible para el cuadro de chat.
+                Responde de forma amigable y concisa sin usar asteriscos de formato Markdown.
                 `;
 
                 try {
-                    // Inicializamos el SDK oficial de Google que instalamos con npm
                     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
                     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-                    // Mandamos el prompt estructurado
                     const result = await model.generateContent(promptCompleto);
                     const respuestaIA = result.response.text();
 
                     res.json({ respuesta: respuestaIA });
 
                 } catch (error) {
-                    console.error("Error en el servicio nativo de Gemini:", error);
-                    res.status(500).json({ respuesta: "Ocurrió un inconveniente al procesar la respuesta con el servicio de Gemini AI." });
+                    // 🚨 AQUÍ ESTÁ LA MAGIA: Mandamos el error REAL y CRUDO al frontend
+                    console.error("Error nativo de Gemini:", error);
+                    res.status(500).json({ respuesta: `⚠️ Error de la API de Google: ${error.message}` });
                 }
             });
         });
