@@ -239,7 +239,8 @@ app.post('/api/ia/consultar', (req, res) => {
 
                 try {
                     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-                    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+                    // ✨ MAGIA APLICADA: CAMBIO DE MODELO A GEMINI-PRO
+                    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
                     const result = await model.generateContent(promptCompleto);
                     const respuestaIA = result.response.text();
