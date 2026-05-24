@@ -110,7 +110,6 @@ async function initDashboardAdmin() {
             construirGrafica(data.modelos, data.cantidades);
         }
     } catch (error) {
-        // Respaldo visual estático por si el servidor no responde de inmediato
         construirGrafica(['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'], [120, 150, 95, 210, 180]);
     }
 }
@@ -141,7 +140,7 @@ function construirGrafica(etiquetas, datosValores) {
 }
 
 // ========================================================
-// CONTENERIZACIÓN INTERACTIVA DE INVENTARIOS EN EL BOTÓN
+// CONTENERIZACIÓN INTERACTIVA DE COMPONENTES DE CONTROL
 // ========================================================
 function abrirModalLote() { document.getElementById('modal-lote').style.display = 'flex'; }
 function cerrarModalLote() { document.getElementById('modal-lote').style.display = 'none'; document.getElementById('form-nuevo-lote').reset(); }
@@ -189,94 +188,72 @@ function abrirModalPersonal() {
 function abrirFormularioPersonalDirecto() { document.getElementById('modal-personal').style.display = 'flex'; }
 function cerrarModalPersonal() { document.getElementById('modal-personal').style.display = 'none'; document.getElementById('form-nuevo-personal').reset(); }
 
-// ========================================================
-// REPORTE UNIFICADO DE INVENTARIOS (INSUMOS + PRODUCTO TERMINADO)
-// ========================================================
-// ========================================================
-// REPORTE UNIFICADO DE INVENTARIOS (COMPROBACIÓN DE COLUMNAS AL 100%)
-// ========================================================
-async function abrirModalMateria() {
+// =========================================================================
+// 📦 NUEVA FUNCIÓN: INYECTA LA TABLA DE MATERIA PRIMA EN EL PANEL DERECHO
+// =========================================================================
+async function desplegarPanelMateria() {
     const contenedor = document.getElementById('contenedor-tablas-admin');
     const titulo = document.getElementById('titulo-tabla-dinamica');
     const encabezado = document.getElementById('encabezado-tabla-dinamica');
     const cuerpo = document.querySelector('#tabla-dinamica-admin tbody');
 
-    if (!contenedor || !cuerpo) {
-        document.getElementById('modal-materia').style.display = 'flex';
-        return;
-    }
+    if (!contenedor || !cuerpo) return;
 
     try {
-        const [resMateriales, resInventario] = await Promise.all([
-            fetch(`${BACKEND_URL}/materiaprima`),
-            fetch(`${BACKEND_URL}/inventario`)
-        ]);
-
-        if (!resMateriales.ok || !resInventario.ok) throw new Error();
-
-        const materiales = await resMateriales.json();
-        const calzadoTerminado = await resInventario.json();
+        const respuesta = await fetch(`${BACKEND_URL}/materiaprima`);
+        if (!respuesta.ok) throw new Error();
+        const materiales = await respuesta.json();
 
         titulo.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                <span>📦 Panel Unificado de Inventarios (MySQL en Aiven)</span>
-                <button onclick="abrirFormularioMateriaDirecto()" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8rem;">+ Agregar Insumo</button>
+                <span>📦 Control y Existencias de Materia Prima (MySQL)</span>
+                <button onclick="abrirModalMateria()" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8rem;">+ Agregar Insumo</button>
             </div>
         `;
         
         encabezado.innerHTML = `
-            <th>Categoría</th>
-            <th>Descripción / Modelo</th>
-            <th>Talla / Medida</th>
-            <th>Color / Info</th>
-            <th>Existencias</th>
+            <th>ID Insumo</th>
+            <th>Nombre del Material</th>
+            <th>Cantidad Disponible</th>
+            <th>Unidad de Medida</th>
         `;
         
         cuerpo.innerHTML = '';
 
-        // 1. Renderizar Materias Primas con triple validación de nombres
-        materiales.forEach(m => {
-            const fila = document.createElement('tr');
-            const stock = parseFloat(m.cantidad_stock);
-            const colorSemaforo = stock < 200 ? '#ef4444' : '#10b981';
+        if (materiales.length === 0) {
+            cuerpo.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 15px;">No hay insumos registrados en la base de datos.</td></tr>`;
+        } else {
+            materiales.forEach(m => {
+                const fila = document.createElement('tr');
+                const stock = parseFloat(m.cantidad_stock);
+                const colorSemaforo = stock < 200 ? '#ef4444' : '#10b981';
+                const nombreInsumo = m.material || m.nombre || 'Insumo';
 
-            // 🔍 Intenta leer 'material', si no existe busca 'nombre', y si no, busca cualquier propiedad que tenga texto
-            const nombreInsumo = m.material || m.nombre || m.material_nombre || Object.values(m)[1] || 'Insumo registrado';
-
-            fila.innerHTML = `
-                <td><span style="background: #374151; color: #f59e0b; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">INSUMO</span></td>
-                <td>${nombreInsumo}</td>
-                <td>-</td>
-                <td>${m.unidad_medida || 'unidades'}</td>
-                <td style="color: ${colorSemaforo}; font-weight: bold;">${stock.toFixed(1)}</td>
-            `;
-            cuerpo.appendChild(fila);
-        });
-
-        // 2. Renderizar Calzado Terminado
-        calzadoTerminado.forEach(t => {
-            const fila = document.createElement('tr');
-            fila.innerHTML = `
-                <td><span style="background: #1e3a8a; color: #60a5fa; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">PRODUCTO</span></td>
-                <td><strong>${t.modelo}</strong></td>
-                <td>${t.talla} MX</td>
-                <td>${t.color}</td>
-                <td style="color: #ffffff; font-weight: bold;">${t.cantidad} pares</td>
-            `;
-            cuerpo.appendChild(fila);
-        });
+                fila.innerHTML = `
+                    <td><strong>#${m.id}</strong></td>
+                    <td>${nombreInsumo}</td>
+                    <td style="color: ${colorSemaforo}; font-weight: bold;">${stock}</td>
+                    <td>${m.unidad_medida || 'unidades'}</td>
+                `;
+                cuerpo.appendChild(fila);
+            });
+        }
 
         contenedor.style.display = 'block';
         contenedor.scrollIntoView({ behavior: 'smooth' });
 
     } catch (error) {
-        document.getElementById('modal-materia').style.display = 'flex';
+        alert("Error al conectar con la base de datos de Aiven.");
     }
 }
 
-function abrirFormularioMateriaDirecto() { document.getElementById('modal-materia').style.display = 'flex'; }
+// Ventanas modales tradicionales
+function abrirModalMateria() { document.getElementById('modal-materia').style.display = 'flex'; }
 function cerrarModalMateria() { document.getElementById('modal-materia').style.display = 'none'; document.getElementById('form-nueva-materia').reset(); }
 
+// ========================================================
+// TRANSACCIONES HACIA EL BACKEND (POSTS)
+// ========================================================
 function registrarLoteBaseDatos(e) {
     e.preventDefault();
     const payloadLote = {
@@ -346,17 +323,16 @@ function registrarMateriaBaseDatos(e) {
     })
     .then(async res => {
         const data = await res.json();
-        // Si el servidor responde con error, atrapamos el mensaje real de MySQL
         if (!res.ok) throw new Error(data.mensaje || data.error || 'Error al guardar insumo.');
         return data;
     })
     .then(() => {
         alert('🎉 ¡Insumo registrado con éxito!');
         cerrarModalMateria();
+        desplegarPanelMateria(); // Actualiza el panel dinámico derecho al instante
         initDashboardAdmin();
     })
     .catch(err => { 
-        // CAMBIADO: Ahora te mostrará el texto real del error en la alerta en lugar de [object Object]
         alert(`❌ Error al guardar insumo: ${err.message}`); 
     });
 }
