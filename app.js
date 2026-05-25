@@ -189,7 +189,8 @@ app.post('/ordenes', (req, res) => {
 // RUTAS DE MATERIA PRIMA
 // =========================================================================
 app.get('/materiaprima', (req, res) => {
-    pool.query(`SELECT id, material, cantidad_stock, unidad_medida FROM materia_prima`, (err, results) => {
+    // El asterisco (*) obliga a MySQL a traernos todo, sin importar los nombres
+    pool.query(`SELECT * FROM materia_prima`, (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(results);
     });
