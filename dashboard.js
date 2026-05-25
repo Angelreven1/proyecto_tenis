@@ -32,19 +32,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('form-nuevo-personal')?.addEventListener('submit', registrarPersonalBaseDatos);
     document.getElementById('form-nueva-materia')?.addEventListener('submit', registrarMateriaBaseDatos);
     
-    // Configurar activador del Chat de IA
-    document.getElementById('btn-preguntar')?.addEventListener('click', enviarPreguntaIA);
-    document.getElementById('pregunta-ia')?.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') enviarPreguntaIA();
-    });
-
     // Cargar modelos reales en el menú del modal
     cargarCatalogoProductos();
 });
 
-// ========================================================
+
 // CARGAR MODELOS DESDE LA BASE DE DATOS AL MENÚ DESPLEGABLE
-// ========================================================
 function cargarCatalogoProductos() {
     const selectProducto = document.getElementById('lote-producto');
     if (!selectProducto) return;
@@ -63,9 +56,9 @@ function cargarCatalogoProductos() {
         .catch(() => console.log("Usando catálogo base del HTML."));
 }
 
-// ========================================================
+
 // DASHBOARD DEL OPERARIO (USER) - EN VIVO DESDE MYSQL
-// ========================================================
+
 function initDashboardUser() {
     console.log("Inicializando vista operativa de usuario...");
     fetch(`${BACKEND_URL}/ordenes`)
@@ -77,9 +70,9 @@ function initDashboardUser() {
         .catch(() => { document.getElementById('user-prod-dia').innerText = "180 pares"; });
 }
 
-// ========================================================
+
 // DASHBOARD DEL ADMINISTRADOR (ADMIN) - GRÁFICA Y STOCK PROTEGIDO
-// ========================================================
+
 async function initDashboardAdmin() {
     console.log("Inicializando paneles avanzados de administrador...");
     
@@ -98,7 +91,7 @@ async function initDashboardAdmin() {
         console.log("Falla al actualizar alertas numéricas en el DOM secundario.");
     }
 
-    // 📈 Cargar Gráfica en tiempo real desde las Órdenes en la nube
+
     try {
         const response = await fetch(`${BACKEND_URL}/api/produccion/resumen-graficas`);
         if (!response.ok) throw new Error();
@@ -139,9 +132,9 @@ function construirGrafica(etiquetas, datosValores) {
     });
 }
 
-// ========================================================
+
 // CONTENERIZACIÓN INTERACTIVA DE COMPONENTES DE CONTROL
-// ========================================================
+
 function abrirModalLote() { document.getElementById('modal-lote').style.display = 'flex'; }
 function cerrarModalLote() { document.getElementById('modal-lote').style.display = 'none'; document.getElementById('form-nuevo-lote').reset(); }
 
@@ -188,9 +181,7 @@ function abrirModalPersonal() {
 function abrirFormularioPersonalDirecto() { document.getElementById('modal-personal').style.display = 'flex'; }
 function cerrarModalPersonal() { document.getElementById('modal-personal').style.display = 'none'; document.getElementById('form-nuevo-personal').reset(); }
 
-// =========================================================================
-// 📦 NUEVA FUNCIÓN: INYECTA LA TABLA DE MATERIA PRIMA EN EL PANEL DERECHO
-// =========================================================================
+
 async function desplegarPanelMateria() {
     const contenedor = document.getElementById('contenedor-tablas-admin');
     const titulo = document.getElementById('titulo-tabla-dinamica');
@@ -334,56 +325,6 @@ function registrarMateriaBaseDatos(e) {
     })
     .catch(err => { 
         alert(`❌ Error al guardar insumo: ${err.message}`); 
-    });
-}
-
-// ========================================================
-// INTERACTIVIDAD EN OPERACIÓN CON GEMINI AI
-// ========================================================
-function enviarPreguntaIA() {
-    const inputPregunta = document.getElementById('pregunta-ia');
-    const chatHistorial = document.getElementById('chat-historial');
-    const textoPregunta = inputPregunta.value.trim();
-
-    if (!textoPregunta) return;
-
-    const miMensaje = document.createElement('p');
-    miMensaje.style.margin = '8px 0';
-    miMensaje.innerHTML = `<strong style="color: #38bdf8;">Tú:</strong> ${textoPregunta}`;
-    chatHistorial.appendChild(miMensaje);
-    inputPregunta.value = '';
-    chatHistorial.scrollTop = chatHistorial.scrollHeight;
-
-    const mensajeCarga = document.createElement('p');
-    mensajeCarga.style.color = '#a1a1aa';
-    mensajeCarga.style.fontStyle = 'italic';
-    mensajeCarga.innerText = "🤖 Gemini analizando inventario de calzado...";
-    chatHistorial.appendChild(mensajeCarga);
-
-    fetch(`${BACKEND_URL}/api/ia/consultar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            pregunta: textoPregunta,
-            usuario: localStorage.getItem('usuario_nombre') || 'Administrador'
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        chatHistorial.removeChild(mensajeCarga);
-        const respuestaIA = document.createElement('p');
-        respuestaIA.style.margin = '12px 0';
-        respuestaIA.style.lineHeight = '1.4';
-        respuestaIA.innerHTML = `<strong style="color: #10b981;">Gemini AI:</strong> ${data.respuesta}`;
-        chatHistorial.appendChild(respuestaIA);
-        chatHistorial.scrollTop = chatHistorial.scrollHeight;
-    })
-    .catch(() => {
-        chatHistorial.removeChild(mensajeCarga);
-        const respuestaError = document.createElement('p');
-        respuestaError.style.color = '#ef4444';
-        respuestaError.innerText = "❌ No se pudo conectar con el asistente de IA.";
-        chatHistorial.appendChild(respuestaError);
     });
 }
 

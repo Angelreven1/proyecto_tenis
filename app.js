@@ -3,17 +3,15 @@ const cors = require('cors');
 const mysql = require('mysql2');
 const fs = require('fs');
 const path = require('path');
-// ✨ CONEXIÓN OFICIAL: Usamos la librería nativa de Google que acabamos de instalar
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// =========================================================================
+
 // CONFIGURACIÓN DE CONEXIÓN A MYSQL EN LA NUBE (AIVEN)
-// =========================================================================
+
 
 const pool = mysql.createPool({
     host: 'mysql-2cd04939-smart-tenis.j.aivencloud.com', 
@@ -57,9 +55,8 @@ function inicializarBaseDeDatos(connection) {
     }
 }
 
-// =========================================================================
 // RUTAS DEL LOGIN, REGISTRO Y USUARIOS
-// =========================================================================
+
 app.post('/login', (req, res) => {
     const { correo, contrasena } = req.body;
     const sql = `SELECT id, nombre, correo, rol FROM usuarios WHERE correo = ? AND contrasena = ?`;
@@ -95,9 +92,9 @@ app.get('/api/usuarios', (req, res) => {
     });
 });
 
-// =========================================================================
+
 // RUTAS DE PRODUCTOS E INVENTARIO
-// =========================================================================
+
 app.get('/productos', (req, res) => {
     pool.query(`SELECT * FROM productos`, (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -117,9 +114,9 @@ app.get('/inventario', (req, res) => {
     });
 });
 
-// =========================================================================
+
 // REGISTRO DE LOTES DE PRODUCCIÓN + GRÁFICA REAL
-// =========================================================================
+
 app.get('/api/produccion/resumen-graficas', (req, res) => {
     const sql = `
         SELECT p.modelo, SUM(o.cantidad) AS total_producido 
@@ -185,11 +182,7 @@ app.post('/ordenes', (req, res) => {
     });
 });
 
-// =========================================================================
-// RUTAS DE MATERIA PRIMA
-// =========================================================================
 app.get('/materiaprima', (req, res) => {
-    // El asterisco (*) obliga a MySQL a traernos todo, sin importar los nombres
     pool.query(`SELECT * FROM materia_prima`, (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(results);
@@ -202,59 +195,6 @@ app.post('/materiaprima', (req, res) => {
     pool.query(sql, [material, cantidad_stock, unidad_medida], (err, result) => {
         if (err) return res.status(500).json({ mensaje: `Error de BD: ${err.message}` });
         res.status(201).json({ mensaje: "Creado", id: result.insertId });
-    });
-});
-
-// =========================================================================
-// 🤖 ENDPOINT DE INTELIGENCIA ARTIFICIAL (GEMINI AI MODO DEPURACIÓN)
-// =========================================================================
-app.post('/api/ia/consultar', (req, res) => {
-    const { pregunta, usuario } = req.body;
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
-    if (!GEMINI_API_KEY) {
-        return res.status(500).json({ respuesta: "🤖 Error: La variable GEMINI_API_KEY no existe en Render." });
-    }
-
-    pool.query('SELECT material, cantidad_stock, unidad_medida FROM materia_prima', (errMateria, insumos) => {
-        pool.query('SELECT p.modelo, i.talla, i.color, i.cantidad FROM inventario i JOIN productos p ON i.producto_id = p.id', (errInv, stockFisico) => {
-            pool.query('SELECT id, nombre, correo, rol FROM usuarios ORDER BY id ASC', async (errUser, listaUsuarios) => {
-                
-                const contextoInsumos = (insumos || []).map(i => `• ${i.material}: ${i.cantidad_stock} ${i.unidad_medida}`).join('\n');
-                const contextoInventario = (stockFisico || []).map(s => `• ${s.modelo} (Talla ${s.talla}, Color ${s.color}): ${s.cantidad} pares`).join('\n');
-                const contextoUsuarios = (listaUsuarios || []).map(u => `• ID #${u.id} - ${u.nombre} (${u.correo}) - Rol: ${u.rol}`).join('\n');
-
-                const promptCompleto = `
-                Eres el asistente virtual exclusivo del sistema Smart Tenis.
-                El usuario actual es: ${usuario}.
-                
-                Datos en vivo:
-                Insumos:\n${contextoInsumos || 'Ninguno'}
-                Inventario:\n${contextoInventario || 'Ninguno'}
-                Usuarios:\n${contextoUsuarios || 'Ninguno'}
-                
-                Pregunta: "${pregunta}"
-                
-                Responde de forma amigable y concisa sin usar asteriscos de formato Markdown.
-                `;
-
-                try {
-                    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-                    // ✨ MAGIA APLICADA: CAMBIO DE MODELO A GEMINI-PRO
-                    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
-                    const result = await model.generateContent(promptCompleto);
-                    const respuestaIA = result.response.text();
-
-                    res.json({ respuesta: respuestaIA });
-
-                } catch (error) {
-                    // 🚨 AQUÍ ESTÁ LA MAGIA: Mandamos el error REAL y CRUDO al frontend
-                    console.error("Error nativo de Gemini:", error);
-                    res.status(500).json({ respuesta: `⚠️ Error de la API de Google: ${error.message}` });
-                }
-            });
-        });
     });
 });
 
